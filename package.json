@@ -1,5 +1,5 @@
 {
-  "name": "tree",
+  "name": "appletree",
   "version": "1.0.0",
   "description": "A JavaScript project",
   "main": "./dist/index.js",
