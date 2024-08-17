@@ -140,9 +140,11 @@ function multAndSums(inputString) {
   let multedString = multOut(string); // returns a string with all the * and / operations completed and folded into the original string.
   let addedString = addOut(multedString); // returns a string with all the + and - operations completed and folded into the original string.
   console.log("addedString", addedString);
-  //   let numberOutput = numberify(addedString); //final conversion of the string into a number.
-  //   console.log("numberOutput at the bottom of multandsums", numberOutput);
-  return addedString;
+
+  if (typeof addedString === "number") {
+    return addedString;
+  } //if the string is already a number, return it.
+  else return numberify(addedString); //final conversion of the string into a number.
 }
 
 function numberify(string) {
@@ -277,6 +279,7 @@ function multOut(string) {
   // Continue processing the new string recursively
   return multOut(newString);
 }
+
 function addOut(string) {
   // Regex to find numbers around the first + or - operator
   let regex = /(-?\d+(\.\d+)?)\s*([+\-])\s*(-?\d+(\.\d+)?)/;

@@ -452,9 +452,10 @@ function multAndSums(inputString) {
   var multedString = multOut(string); // returns a string with all the * and / operations completed and folded into the original string.
   var addedString = addOut(multedString); // returns a string with all the + and - operations completed and folded into the original string.
   console.log("addedString", addedString);
-  //   let numberOutput = numberify(addedString); //final conversion of the string into a number.
-  //   console.log("numberOutput at the bottom of multandsums", numberOutput);
-  return addedString;
+  if (typeof addedString === "number") {
+    return addedString;
+  } //if the string is already a number, return it.
+  else return numberify(addedString); //final conversion of the string into a number.
 }
 function numberify(string) {
   var number = 0;
