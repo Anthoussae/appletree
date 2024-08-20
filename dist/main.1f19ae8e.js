@@ -378,7 +378,9 @@ function cleanString(inputString) {
   var noExtraneousCharacterString = inputString.replace(/[^0-9\.\+\-\*\/\(\)]/g, "");
 
   // Remove operators not followed or preceded by a number or parentheses
-  var noHangingOperatorsString = noExtraneousCharacterString.replace(/[\+\-\*\/](?![\d\.\(])/g, "");
+  var noHangingOperatorsString = noExtraneousCharacterString.replace(/([\+\*\/])(?![\d\.\(])/g,
+  // Keep "-" as it may indicate a negative number
+  "");
 
   // Remove empty parentheses
   var noEmptyParenthesis = noHangingOperatorsString.replace(/\(\)/g, "");
@@ -386,14 +388,19 @@ function cleanString(inputString) {
   // Fix multiplication implied between numbers and parentheses
   var fixedParenthesisMultiplication = noEmptyParenthesis.replace(/(\d+(\.\d+)?)(\()/g, "$1*$3");
 
-  // Remove unnecessary repeated operators
-  var noUneccesaryRepeatedString = fixedParenthesisMultiplication.replace(/([\+\-\*\/])\1+/g, "$1");
+  // Remove unnecessary repeated operators, except for leading negative sign
+  var noUneccesaryRepeatedString = fixedParenthesisMultiplication.replace(/([\+\*\/])\1+/g,
+  // We don't want to touch "-" here to avoid removing leading negatives
+  "$1");
 
   // Remove all whitespace
   var cleanedString = noUneccesaryRepeatedString.replace(/\s/g, "");
 
-  // Remove operators that are neither followed nor preceded by a number or parentheses
-  cleanedString = cleanedString.replace(/(?<!\d|\))[\+\-\*\/](?!\d|\()/g, "");
+  // Correct handling of the "-" sign when it's not a leading negative sign
+  cleanedString = cleanedString.replace(/(?<!\d|\))[\+\*\/](?!\d|\()/g, "");
+
+  // Ensure leading negative signs remain intact
+  cleanedString = cleanedString.replace(/(?<=^|[\(\+\*\/])-/g, "-");
 
   // Count the number of opening and closing brackets
   var openBrackets = (cleanedString.match(/\(/g) || []).length;
@@ -413,8 +420,8 @@ function cleanString(inputString) {
     cleanedString += ")".repeat(openBrackets - closeBrackets);
   }
 
-  // Remove any sequences of 2 operators in a row
-  cleanedString = cleanedString.replace(/[\+\-\*\/]{2,}/g, "");
+  // Remove any sequences of 2 operators in a row, except for cases like "(-5+4)"
+  cleanedString = cleanedString.replace(/[\+\*\/]{2,}/g, "");
   return cleanedString;
 }
 
@@ -461,9 +468,17 @@ function numberify(string) {
   var number = 0;
   var decimalPlace = 0;
   var hasDecimal = false;
+  var isNegative = false;
 
-  // Iterate over each character in the string
-  for (var i = 0; i < string.length; i++) {
+  // Check for negative sign at the beginning
+  var startIndex = 0;
+  if (string[0] === "-") {
+    isNegative = true;
+    startIndex = 1; // Start processing after the negative sign
+  }
+
+  // Iterate over each character in the string starting from startIndex
+  for (var i = startIndex; i < string.length; i++) {
     var char = string[i];
     if (char === ".") {
       // Handle the decimal point
@@ -490,7 +505,11 @@ function numberify(string) {
       }
     }
   }
-  console.log("string at bottom of numberify", number);
+
+  // Apply the negative sign if applicable
+  if (isNegative) {
+    number = -number;
+  }
   return number;
 }
 function stringerify(number) {
@@ -544,9 +563,13 @@ function stringerify(number) {
 //next, the result is transformed back into a string with strigerify(result).
 //finally, the new string is reinserted into the original string, replacing the old expression, using the index markers to ensure it's all in the right place.
 //the function then returns the new string.  // Find the first occurrence of * or /
+
+//currently this function doesn't handle negative numbers
+//let's adjust it to handle negative numbers, but still treating everything as a string.
+//it needs to detect if a number has a "-" in front of it, and if so, treat it as a negative number.
 function multOut(string) {
-  // Regex to find numbers around the first * or / operator
-  var regex = /(\d+(\.\d+)?)\s*([*\/])\s*(\d+(\.\d+)?)/;
+  // Adjusted regex to handle numbers like ".5" or "0.4"
+  var regex = /(-?\d*\.?\d+)\s*([*\/])\s*(-?\d*\.?\d+)/;
 
   // Check if there's any * or / operator in the string
   if (!regex.test(string)) {
@@ -561,8 +584,8 @@ function multOut(string) {
 
   // Extract numbers and operator from the match
   var var1 = match[1];
-  var var2 = match[4];
-  var operator = match[3];
+  var var2 = match[3];
+  var operator = match[2];
 
   // Convert to numbers
   var num1 = numberify(var1);
@@ -575,8 +598,9 @@ function multOut(string) {
   } else if (operator === "/") {
     result = num1 / num2;
   }
-  console.log("result", result);
-  var resultString = stringerify(result);
+
+  // Convert result back to string
+  var resultString = result.toString();
 
   // Replace the old expression with the new result
   var newString = string.replace(regex, resultString);
@@ -585,8 +609,8 @@ function multOut(string) {
   return multOut(newString);
 }
 function addOut(string) {
-  // Regex to find numbers around the first + or - operator
-  var regex = /(-?\d+(\.\d+)?)\s*([+\-])\s*(-?\d+(\.\d+)?)/;
+  // Adjusted regex to handle numbers like ".5" or "0.4" and ensure proper handling of leading "-"
+  var regex = /(-?\d*\.?\d+)\s*([+\-])\s*(-?\d*\.?\d+)/;
   if (!regex.test(string)) {
     return string; // No + or - found, return the original string
   }
@@ -599,8 +623,8 @@ function addOut(string) {
 
   // Extract numbers and operator from the match
   var var1 = match[1];
-  var var2 = match[4];
-  var operator = match[3];
+  var var2 = match[3];
+  var operator = match[2];
 
   // Convert to numbers
   var num1 = numberify(var1);
@@ -615,7 +639,7 @@ function addOut(string) {
   }
 
   // Convert result back to string
-  var resultString = stringerify(result);
+  var resultString = result.toString();
 
   // Replace the old expression with the new result
   var newString = string.replace(regex, resultString);
@@ -628,6 +652,11 @@ function addOut(string) {
 
 var _drawTree = require("./drawTree");
 var _parseMathlikeString = require("./parseMathlikeString");
+// const port = process.env.PORT || 8080;
+// app.listen(port, () => {
+//   console.log(`Server running on port ${port}`);
+// });
+
 var displayToggles = {
   drawTree: false,
   parseMathlikeString: false
@@ -689,7 +718,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "55369" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "50394" + '/');
   ws.onmessage = function (event) {
     checkedAssets = {};
     assetsToAccept = [];

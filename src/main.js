@@ -2,6 +2,11 @@
 import { drawTree } from "./drawTree";
 import { parseMathlikeString } from "./parseMathlikeString";
 
+// const port = process.env.PORT || 8080;
+// app.listen(port, () => {
+//   console.log(`Server running on port ${port}`);
+// });
+
 let displayToggles = {
   drawTree: false,
   parseMathlikeString: false,

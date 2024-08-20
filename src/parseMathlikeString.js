@@ -42,7 +42,7 @@ function cleanString(inputString) {
 
   // Remove operators not followed or preceded by a number or parentheses
   let noHangingOperatorsString = noExtraneousCharacterString.replace(
-    /[\+\-\*\/](?![\d\.\(])/g,
+    /([\+\*\/])(?![\d\.\(])/g, // Keep "-" as it may indicate a negative number
     ""
   );
 
@@ -55,17 +55,20 @@ function cleanString(inputString) {
     "$1*$3"
   );
 
-  // Remove unnecessary repeated operators
+  // Remove unnecessary repeated operators, except for leading negative sign
   let noUneccesaryRepeatedString = fixedParenthesisMultiplication.replace(
-    /([\+\-\*\/])\1+/g,
+    /([\+\*\/])\1+/g, // We don't want to touch "-" here to avoid removing leading negatives
     "$1"
   );
 
   // Remove all whitespace
   let cleanedString = noUneccesaryRepeatedString.replace(/\s/g, "");
 
-  // Remove operators that are neither followed nor preceded by a number or parentheses
-  cleanedString = cleanedString.replace(/(?<!\d|\))[\+\-\*\/](?!\d|\()/g, "");
+  // Correct handling of the "-" sign when it's not a leading negative sign
+  cleanedString = cleanedString.replace(/(?<!\d|\))[\+\*\/](?!\d|\()/g, "");
+
+  // Ensure leading negative signs remain intact
+  cleanedString = cleanedString.replace(/(?<=^|[\(\+\*\/])-/g, "-");
 
   // Count the number of opening and closing brackets
   let openBrackets = (cleanedString.match(/\(/g) || []).length;
@@ -88,8 +91,8 @@ function cleanString(inputString) {
     cleanedString += ")".repeat(openBrackets - closeBrackets);
   }
 
-  // Remove any sequences of 2 operators in a row
-  cleanedString = cleanedString.replace(/[\+\-\*\/]{2,}/g, "");
+  // Remove any sequences of 2 operators in a row, except for cases like "(-5+4)"
+  cleanedString = cleanedString.replace(/[\+\*\/]{2,}/g, "");
 
   return cleanedString;
 }
@@ -151,9 +154,17 @@ function numberify(string) {
   let number = 0;
   let decimalPlace = 0;
   let hasDecimal = false;
+  let isNegative = false;
 
-  // Iterate over each character in the string
-  for (let i = 0; i < string.length; i++) {
+  // Check for negative sign at the beginning
+  let startIndex = 0;
+  if (string[0] === "-") {
+    isNegative = true;
+    startIndex = 1; // Start processing after the negative sign
+  }
+
+  // Iterate over each character in the string starting from startIndex
+  for (let i = startIndex; i < string.length; i++) {
     let char = string[i];
 
     if (char === ".") {
@@ -182,9 +193,15 @@ function numberify(string) {
       }
     }
   }
-  console.log("string at bottom of numberify", number);
+
+  // Apply the negative sign if applicable
+  if (isNegative) {
+    number = -number;
+  }
+
   return number;
 }
+
 function stringerify(number) {
   if (number === 0) {
     return "0";
@@ -238,9 +255,13 @@ function stringerify(number) {
 //next, the result is transformed back into a string with strigerify(result).
 //finally, the new string is reinserted into the original string, replacing the old expression, using the index markers to ensure it's all in the right place.
 //the function then returns the new string.  // Find the first occurrence of * or /
+
+//currently this function doesn't handle negative numbers
+//let's adjust it to handle negative numbers, but still treating everything as a string.
+//it needs to detect if a number has a "-" in front of it, and if so, treat it as a negative number.
 function multOut(string) {
-  // Regex to find numbers around the first * or / operator
-  let regex = /(\d+(\.\d+)?)\s*([*\/])\s*(\d+(\.\d+)?)/;
+  // Adjusted regex to handle numbers like ".5" or "0.4"
+  let regex = /(-?\d*\.?\d+)\s*([*\/])\s*(-?\d*\.?\d+)/;
 
   // Check if there's any * or / operator in the string
   if (!regex.test(string)) {
@@ -255,8 +276,8 @@ function multOut(string) {
 
   // Extract numbers and operator from the match
   let var1 = match[1];
-  let var2 = match[4];
-  let operator = match[3];
+  let var2 = match[3];
+  let operator = match[2];
 
   // Convert to numbers
   let num1 = numberify(var1);
@@ -269,9 +290,9 @@ function multOut(string) {
   } else if (operator === "/") {
     result = num1 / num2;
   }
-  console.log("result", result);
 
-  let resultString = stringerify(result);
+  // Convert result back to string
+  let resultString = result.toString();
 
   // Replace the old expression with the new result
   let newString = string.replace(regex, resultString);
@@ -279,10 +300,9 @@ function multOut(string) {
   // Continue processing the new string recursively
   return multOut(newString);
 }
-
 function addOut(string) {
-  // Regex to find numbers around the first + or - operator
-  let regex = /(-?\d+(\.\d+)?)\s*([+\-])\s*(-?\d+(\.\d+)?)/;
+  // Adjusted regex to handle numbers like ".5" or "0.4" and ensure proper handling of leading "-"
+  let regex = /(-?\d*\.?\d+)\s*([+\-])\s*(-?\d*\.?\d+)/;
 
   if (!regex.test(string)) {
     return string; // No + or - found, return the original string
@@ -296,8 +316,8 @@ function addOut(string) {
 
   // Extract numbers and operator from the match
   let var1 = match[1];
-  let var2 = match[4];
-  let operator = match[3];
+  let var2 = match[3];
+  let operator = match[2];
 
   // Convert to numbers
   let num1 = numberify(var1);
@@ -312,7 +332,7 @@ function addOut(string) {
   }
 
   // Convert result back to string
-  let resultString = stringerify(result);
+  let resultString = result.toString();
 
   // Replace the old expression with the new result
   let newString = string.replace(regex, resultString);
